@@ -1,95 +1,121 @@
-import Image from 'next/image'
-import styles from './page.module.css'
+import {
+  Box,
+  Grid,
+  Button,
+  Input,
+  Flex,
+  Spinner,
+  Heading,
+  Wrap,
+  WrapItem,
+} from '@chakra-ui/react';
+import PostCard from '@/components/posts/PostCard';
+import Link from 'next/link';
+import { blogPostService } from '@/services/postService';
+import { ROUTES } from '@/config/routes';
+import { redirect } from 'next/navigation';
 
-export default function Home() {
+const POSTS_PER_PAGE = 3;
+
+async function handleSearch(formData: FormData) {
+  'use server';
+  const query = formData.get('search') as string;
+  redirect(`?search=${encodeURIComponent(query)}`);
+}
+
+async function handlePagination(formData: FormData) {
+  'use server';
+  const page = formData.get('page') as string;
+  redirect(`?page=${page}`);
+}
+
+interface HomeProps {
+  searchParams: { search?: string; page?: string };
+}
+
+export default async function Home({ searchParams }: HomeProps) {
+  const searchQuery = searchParams.search || '';
+  const currentPage = Number(searchParams.page) || 1;
+
+  const { posts, totalPosts } = await blogPostService.getAll(
+    searchQuery,
+    currentPage,
+    POSTS_PER_PAGE
+  );
+
+  const totalPages = Math.ceil(totalPosts / POSTS_PER_PAGE);
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>src/app/page.tsx</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+    <Box p={4}>
+      <Link href={ROUTES.home}>
+        <Heading mb={4}>All Blog Posts</Heading>
+      </Link>
 
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
+      {/* Search Form */}
+      <form action={handleSearch}>
+        <Flex mb={4} gap={2}>
+          <Input
+            name='search'
+            placeholder='Search...'
+            defaultValue={searchQuery}
+          />
+          <Button type='submit' colorScheme='teal'>
+            Search
+          </Button>
+        </Flex>
+      </form>
+      <Flex
+        mb={4}
+        gap={2}
+        flexDirection={{ base: 'column', md: 'row' }}
+        align={{ base: 'stretch', md: 'center' }}
+      >
+        <Link href={ROUTES.addPost}>
+          <Button colorScheme='teal' w='full'>
+            Add Blog Post
+          </Button>
+        </Link>
+        <Link href={ROUTES.addAuthor}>
+          <Button colorScheme='teal' w='full'>
+            Add Author
+          </Button>
+        </Link>
+      </Flex>
+      {posts.length === 0 ? (
+        <Box>No posts found.</Box>
+      ) : (
+        <Grid
+          templateColumns={{
+            base: '1fr',
+            md: 'repeat(2, 1fr)',
+            lg: 'repeat(3, 1fr)',
+          }}
+          gap={6}
         >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
+          {posts.map((post) => (
+            <PostCard key={post.id} post={post} />
+          ))}
+        </Grid>
+      )}
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore the Next.js 13 playground.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  )
+      {/* Pagination Form */}
+      {totalPages > 1 && (
+        <Wrap justify='center' mt={4} gap={2}>
+          {Array.from({ length: totalPages }, (_, i) => (
+            <WrapItem key={i + 1}>
+              <form action={handlePagination}>
+                <input type='hidden' name='page' value={i + 1} />
+                <Button
+                  type='submit'
+                  colorScheme={i + 1 === currentPage ? 'blue' : 'gray'}
+                >
+                  {i + 1}
+                </Button>
+              </form>
+            </WrapItem>
+          ))}
+        </Wrap>
+      )}
+    </Box>
+  );
 }
